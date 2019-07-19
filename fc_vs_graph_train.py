@@ -17,7 +17,6 @@ class BorisNet(nn.Module):
     def forward(self, x):
         return self.fc(x.view(x.size(0), -1))
 
-
 class BorisGraphNet(nn.Module):
     def __init__(self, img_size=28, pred_edge=False):
         super(BorisGraphNet, self).__init__()
@@ -26,13 +25,15 @@ class BorisGraphNet(nn.Module):
         self.fc = nn.Linear(N, 10, bias=False)
         if pred_edge:
             col, row = np.meshgrid(np.arange(img_size), np.arange(img_size))
-            coord = np.stack((col, row), axis=2).reshape(-1, 2) / img_size - 0.5
+            coord = np.stack((col, row), axis=2).reshape(-1, 2)
+            coord = (coord - np.mean(coord, axis=0)) / (np.std(coord, axis=0) + 1e-5)
             coord = torch.from_numpy(coord).float()  # 784,2
             coord = torch.cat((coord.unsqueeze(0).repeat(N, 1,  1),
                                     coord.unsqueeze(1).repeat(1, N, 1)), dim=2)
-            self.pred_edge_fc = nn.Sequential(nn.Linear(4, 32),
+            #coord = torch.abs(coord[:, :, [0, 1]] - coord[:, :, [2, 3]])
+            self.pred_edge_fc = nn.Sequential(nn.Linear(4, 64),
                                               nn.ReLU(),
-                                              nn.Linear(32, 1),
+                                              nn.Linear(64, 1),
                                               nn.Tanh())
             self.register_buffer('coord', coord)
         else:
@@ -66,6 +67,7 @@ class BorisGraphNet(nn.Module):
         B = x.size(0)
         if self.pred_edge:
             self.A = self.pred_edge_fc(self.coord).squeeze()
+
         avg_neighbor_features = (torch.bmm(self.A.unsqueeze(0).expand(B, -1, -1),
                                  x.view(B, -1, 1)).view(B, -1))
         return self.fc(avg_neighbor_features)
@@ -157,7 +159,7 @@ def main():
         raise NotImplementedError(args.model)
     model.to(device)
     print(model)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
@@ -168,5 +170,6 @@ if __name__ == '__main__':
     main()
     # Examples:
     # python mnist_fc.py --model fc
-    # python mnist_fc.py
-    # python mnist_fc.py --pred_edge
+    # python mnist_fc.py --model graph
+    # python mnist_fc.py --model graph --pred_edge
+    
