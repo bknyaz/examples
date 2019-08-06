@@ -17,6 +17,18 @@ class BorisNet(nn.Module):
     def forward(self, x):
         return self.fc(x.view(x.size(0), -1))
 
+
+class BorisConvNet(nn.Module):
+    def __init__(self):
+        super(BorisConvNet, self).__init__()
+        self.conv = nn.Conv2d(1, 10, 28, stride=1, padding=14)
+        self.fc = nn.Linear(4 * 4 * 10, 10, bias=False)
+
+    def forward(self, x):
+        x = F.relu(self.conv(x))
+        x = F.max_pool2d(x, 7)
+        return self.fc(x.view(x.size(0), -1))
+
 class BorisGraphNet(nn.Module):
     def __init__(self, img_size=28, pred_edge=False):
         super(BorisGraphNet, self).__init__()
@@ -111,7 +123,7 @@ def test(args, model, device, test_loader):
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-    parser.add_argument('--model', type=str, default='graph', choices=['fc', 'graph'],
+    parser.add_argument('--model', type=str, default='graph', choices=['fc', 'graph', 'conv'],
                         help='model to use for training (default: fc)')
     parser.add_argument('--batch-size', type=int, default=64,
                         help='input batch size for training (default: 64)')
@@ -155,11 +167,15 @@ def main():
         model = BorisNet()
     elif args.model == 'graph':
         model = BorisGraphNet(pred_edge=args.pred_edge)
+    elif args.model == 'conv':
+        model = BorisConvNet()
     else:
         raise NotImplementedError(args.model)
     model.to(device)
     print(model)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=1e-4)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=1e-1 if args.model == 'conv' else 1e-4)
+    print('number of trainable parameters: %d' %
+          np.sum([np.prod(p.size()) if p.requires_grad else 0 for p in model.parameters()]))
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
@@ -172,4 +188,3 @@ if __name__ == '__main__':
     # python mnist_fc.py --model fc
     # python mnist_fc.py --model graph
     # python mnist_fc.py --model graph --pred_edge
-    
