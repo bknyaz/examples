@@ -63,7 +63,8 @@ class BorisGraphNet(nn.Module):
         
         # Below, I forgot to square dist to make it a Gaussian (not sure how important it can be for final results)
         A = np.exp(- dist / sigma ** 2)
-        
+        print('WARNING: try squaring the dist to make it a Gaussian')
+            
         A[A < 0.01] = 0
         A = torch.from_numpy(A).float()
 
