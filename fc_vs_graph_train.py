@@ -58,9 +58,12 @@ class BorisGraphNet(nn.Module):
     def precompute_adjacency_images(img_size):
         col, row = np.meshgrid(np.arange(img_size), np.arange(img_size))
         coord = np.stack((col, row), axis=2).reshape(-1, 2) / img_size
-        dist = cdist(coord, coord)
+        dist = cdist(coord, coord)  
         sigma = 0.05 * np.pi
+        
+        # Below, I forgot to square dist to make it a Gaussian (not sure how important it can be for final results)
         A = np.exp(- dist / sigma ** 2)
+        
         A[A < 0.01] = 0
         A = torch.from_numpy(A).float()
 
